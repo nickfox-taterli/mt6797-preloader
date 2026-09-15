@@ -69,6 +69,8 @@ static int x20_stage_header_valid(u64 *total, u64 *loader_offset,
     u32 calculated_crc;
     u64 bundle_lba;
     u64 bundle_lbas;
+    u64 loader_length;
+    u64 atf_length;
 
     if (memcmp(x20_stage_header, X20_RAW_STAGE_MAGIC,
                X20_RAW_STAGE_MAGIC_SIZE) != 0 ||
@@ -87,15 +89,15 @@ static int x20_stage_header_valid(u64 *total, u64 *loader_offset,
     *total = x20_get_le64(x20_stage_header + X20_RAW_STAGE_TOTAL_SIZE_OFFSET);
     *loader_offset = x20_get_le64(x20_stage_header +
                                   X20_RAW_STAGE_LOADER_OFFSET);
-    *loader_size = x20_get_le32(x20_stage_header +
-                                X20_RAW_STAGE_LOADER_SIZE);
+    loader_length = x20_get_le64(x20_stage_header +
+                                 X20_RAW_STAGE_LOADER_SIZE);
     *loader_load = x20_get_le64(x20_stage_header +
                                 X20_RAW_STAGE_LOADER_LOAD);
     *loader_entry = x20_get_le64(x20_stage_header +
                                  X20_RAW_STAGE_LOADER_ENTRY);
     *loader_crc = x20_get_le32(x20_stage_header + X20_RAW_STAGE_LOADER_CRC);
     *atf_offset = x20_get_le64(x20_stage_header + X20_RAW_STAGE_ATF_OFFSET);
-    *atf_size = x20_get_le32(x20_stage_header + X20_RAW_STAGE_ATF_SIZE);
+    atf_length = x20_get_le64(x20_stage_header + X20_RAW_STAGE_ATF_SIZE);
     *atf_load = x20_get_le64(x20_stage_header + X20_RAW_STAGE_ATF_LOAD);
     *atf_entry = x20_get_le64(x20_stage_header + X20_RAW_STAGE_ATF_ENTRY);
     *atf_crc = x20_get_le32(x20_stage_header + X20_RAW_STAGE_ATF_CRC);
@@ -104,19 +106,28 @@ static int x20_stage_header_valid(u64 *total, u64 *loader_offset,
     bundle_lbas = x20_get_le64(x20_stage_header +
                                X20_RAW_STAGE_BUNDLE_LBAS_OFFSET);
 
-    if (*total < X20_RAW_STAGE_HEADER_SIZE ||
+    if (x20_get_le32(x20_stage_header + X20_RAW_STAGE_FLAGS_OFFSET) != 0 ||
+        loader_length > 0xffffffffULL || atf_length > 0xffffffffULL ||
+        *total < X20_RAW_STAGE_HEADER_SIZE ||
         *total > X20_RAW_STAGE_MAX_BYTES ||
         (*total & (X20_RAW_STAGE_ALIGNMENT - 1)) ||
-        !x20_range_valid(*loader_offset, *loader_size, *total,
+        !x20_range_valid(*loader_offset, loader_length, *total,
                          X20_RAW_STAGE_LOADER_MAX_BYTES) ||
-        !x20_range_valid(*atf_offset, *atf_size, *total,
+        !x20_range_valid(*atf_offset, atf_length, *total,
                          X20_RAW_STAGE_ATF_MAX_BYTES) ||
+        (*loader_offset < *atf_offset + atf_length &&
+         *atf_offset < *loader_offset + loader_length) ||
         *loader_load != X20_RAW_STAGE_LOADER_ADDRESS ||
         *loader_entry != X20_RAW_STAGE_LOADER_ADDRESS ||
-        *atf_load != CFG_ATF_ROM_MEMADDR || *atf_entry != CFG_ATF_ROM_MEMADDR ||
+        *atf_load != (u64)CFG_ATF_ROM_MEMADDR ||
+        *atf_load != X20_RAW_STAGE_ATF_LOAD_ADDRESS ||
+        *atf_entry != X20_RAW_STAGE_ATF_ENTRY_ADDRESS ||
         bundle_lba != X20_RAW_STAGE_BUNDLE_USER_LBA ||
         bundle_lbas == 0 || bundle_lbas > X20_RAW_STAGE_BUNDLE_MAX_LBAS)
         return -1;
+
+    *loader_size = (u32)loader_length;
+    *atf_size = (u32)atf_length;
 
     return 0;
 }
@@ -136,7 +147,7 @@ int x20_raw_stage_load(blkdev_t *bdev, u32 *jump_addr, u32 *loader_size)
     u32 loader_crc;
     u32 atf_crc;
 
-    if (!bdev || bdev->blksz != 512)
+    if (!bdev || !jump_addr || bdev->blksz != 512)
         return -1;
 
     stage_base = (u64)X20_RAW_STAGE_USER_LBA * 512ULL;
