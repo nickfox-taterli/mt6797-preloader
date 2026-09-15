@@ -91,7 +91,7 @@ export MTK_PATH_PLATFORM := $(D_ROOT)/platform/$(PLATFORM)
 # Image Auth
 #
 CUSTOM_PATH             := $(MTK_PATH_CUSTOM)/security
-MTK_AUTH_CUSTOM         := $(D_ROOT)/../../../../../../vendor/mediatek/proprietary/custom/$(MTK_PROJECT)/security
+MTK_AUTH_CUSTOM         ?= $(CUSTOM_PATH)
 IMAGE_AUTH_CFG_FILE     := ${PRELOADER_OUT}/inc/KEY_IMAGE_AUTH.h
 #IMAGE_AUTH_CONFIG_PATH  := ${CUSTOM_PATH}/image_auth
 IMAGE_AUTH_CONFIG_PATH  := ${MTK_AUTH_CUSTOM}/image_auth
@@ -153,10 +153,10 @@ PRELOADER_EXT_BIN_EXIST := $(if $(wildcard $(PRELOADER_EXT_BIN)),TRUE,FALSE)
 #
 EFUSE_PY_FILE			:= tools/efuse/efuse_bingen_v2.py
 EFUSE_PY_DEF			:= tools/efuse/$(MTK_PLATFORM)/efuse_definition.xml
-EFUSE_INPUT_FILE		:= $(D_ROOT)/../../../../../../vendor/mediatek/proprietary/custom/$(MTK_PROJECT)/security/efuse/input.xml
+EFUSE_INPUT_FILE		:= $(CUSTOM_PATH)/efuse/input.xml
 EFUSE_IMAGE_NAME        := efuse_$(MTK_PROJECT).img
 
-TOOL_PATH               ?= $(D_ROOT)/../../../../../../device/mediatek/build/build/tools
+TOOL_PATH               ?= $(D_ROOT)/tools
 
 ifeq ($(HOST_OS),darwin)
 SIGN_TOOL               := ${TOOL_PATH}/SignTool/SignTool_PL.darwin

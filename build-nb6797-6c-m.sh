@@ -1,18 +1,16 @@
 #!/bin/sh
 
-# Rebuild the X20-96 MT6797 Preloader from the separately managed vendor tree.
-# The output is deliberately one rolling artifact directory; versioning is done
-# by Git commits and the generated manifest, not by copying large build trees.
+# Rebuild the X20-96 MT6797 Preloader from the source checked into this
+# component.  The output is deliberately one rolling artifact directory;
+# versioning is done by Git commits and the generated manifest.
 
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 workspace_dir=$(CDPATH= cd -- "$script_dir/../../.." && pwd)
-vendor_root=${VENDOR_ROOT:-$workspace_dir/vendor}
-source_dir=$vendor_root/mediatek/proprietary/bootable/bootloader/preloader
-source_commit=be545c074ea484d0d51433b6bbf1acc032affe5a
+component_dir=$script_dir
+source_dir=$component_dir/source
 build_dir=${PRELOADER_OUT:-$workspace_dir/out/preloader-source-nb6797-6c-m-current}
-tool_dir=$build_dir/tools
 cross_compile=${CROSS_COMPILE:-/usr/bin/arm-none-eabi-}
 target_variant=${TARGET_BUILD_VARIANT:-eng}
 jobs=${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1')}
@@ -32,55 +30,33 @@ die()
 	exit 1
 }
 
-[ -d "$vendor_root/.git" ] || die "VENDOR_ROOT is not a Git checkout: $vendor_root"
+[ -d "$component_dir/.git" ] || die "component is not a Git checkout: $component_dir"
 [ -f "$source_dir/Makefile" ] || die "Preloader source is missing: $source_dir"
 
-actual_commit=$(git -C "$vendor_root" rev-parse HEAD)
-[ "$actual_commit" = "$source_commit" ] || die "vendor commit is $actual_commit, expected $source_commit"
+component_commit=$(git -C "$component_dir" rev-parse HEAD)
+source_tree=$(git -C "$component_dir" rev-parse HEAD:source)
 
-if ! git -C "$vendor_root" diff --quiet || ! git -C "$vendor_root" diff --cached --quiet; then
-	[ "${ALLOW_DIRTY_SOURCE:-no}" = yes ] || die "vendor checkout is dirty; set ALLOW_DIRTY_SOURCE=yes only for an explicit probe"
-	echo "warning: building a dirty vendor checkout" >&2
+if ! git -C "$component_dir" diff --quiet -- source || \
+	! git -C "$component_dir" diff --cached --quiet -- source; then
+	[ "${ALLOW_DIRTY_SOURCE:-no}" = yes ] || die "component source is dirty; set ALLOW_DIRTY_SOURCE=yes only for an explicit probe"
+	echo "warning: building a dirty component source tree" >&2
 fi
 
 command -v "${cross_compile}gcc" >/dev/null 2>&1 || die "missing compiler: ${cross_compile}gcc"
 
 if [ -e "$build_dir/source-commit" ]; then
-	stored_commit=$(sed -n '1p' "$build_dir/source-commit")
-	[ "$stored_commit" = "$source_commit" ] || die "output belongs to $stored_commit; choose a new PRELOADER_OUT"
+	stored_tree=$(sed -n '1p' "$build_dir/source-commit")
+	[ "$stored_tree" = "$source_tree" ] || die "output belongs to $stored_tree; choose a new PRELOADER_OUT"
 else
 	mkdir -p "$build_dir"
-	printf '%s\n' "$source_commit" > "$build_dir/source-commit"
+	printf '%s\n' "$source_tree" > "$build_dir/source-commit"
 fi
-
-mkdir -p "$tool_dir/SignTool" "$tool_dir/CipherTool"
-
-sign_tool=$vendor_root/mediatek/proprietary/scripts/sign-image/SignTool_PL
-cipher_tool=$vendor_root/mediatek/proprietary/scripts/ciphertool/CipherTool
-[ -x "$sign_tool" ] || die "missing SignTool_PL: $sign_tool"
-[ -x "$cipher_tool" ] || die "missing CipherTool: $cipher_tool"
-
-ensure_link()
-{
-	link=$1
-	target=$2
-	if [ -L "$link" ]; then
-		[ "$(readlink "$link")" = "$target" ] || die "unexpected existing link: $link"
-	elif [ -e "$link" ]; then
-		die "unexpected existing tool path: $link"
-	else
-		ln -s "$target" "$link"
-	fi
-}
-
-ensure_link "$tool_dir/SignTool/SignTool_PL" "$sign_tool"
-ensure_link "$tool_dir/CipherTool/CipherTool" "$cipher_tool"
 
 make -C "$source_dir" \
 	MTK_PROJECT=nb6797_6c_m \
 	PRELOADER_OUT="$build_dir" \
-	ROOTDIR="$vendor_root" \
-	TOOL_PATH="$tool_dir" \
+	ROOTDIR="$component_dir" \
+	TOOL_PATH="$source_dir/tools" \
 	CROSS_COMPILE="$cross_compile" \
 	TARGET_BUILD_VARIANT="$target_variant" \
 	BUILD_TIME="$build_time" \
@@ -95,8 +71,9 @@ raw_artifact=$build_dir/bin/preloader_nb6797_6c_m_NO_GFH.bin
 [ -f "$raw_artifact" ] || die "build completed without $raw_artifact"
 
 {
-	printf 'vendor_root=%s\n' "$vendor_root"
-	printf 'vendor_commit=%s\n' "$actual_commit"
+	printf 'component_dir=%s\n' "$component_dir"
+	printf 'component_commit=%s\n' "$component_commit"
+	printf 'source_tree=%s\n' "$source_tree"
 	printf 'project=nb6797_6c_m\n'
 	printf 'target_build_variant=%s\n' "$target_variant"
 	printf 'cross_compile=%s\n' "$cross_compile"
