@@ -28,7 +28,7 @@ The source was copied into the maintained component repository at:
 
 The original checkout remains at `/root/code/x20/vendor` only as provenance
 and a temporary reference.  The current Preloader component HEAD is
-`5fe400b`; its last source-code snapshot was introduced at `c6f1c0d` (source
+`9f2e2c9`; its last source-code snapshot was introduced at `c6f1c0d` (source
 tree `29e9db324daae15280c1f88754f896b63099e6ab`).  The vendor checkout's provenance branch is
 `x20/nb6797-6c-m-preloader` at `be545c074ea484d0d51433b6bbf1acc032affe5a`.
 
