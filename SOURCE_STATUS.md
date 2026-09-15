@@ -63,6 +63,30 @@ format.  The Android lock, AVB, fastboot policy and signature logic targeted
 for removal belong to the replacement Loader; they must not be removed from
 this immutable BootROM-facing stage without a separate BootROM test.
 
+## Physical FES validation
+
+The fixed-time source-built artifact was temporarily loaded by BootROM through
+xflash on the real X20-96 board.  The paired vendor LK/ATF then reached:
+
+- one-rank `dram_rank_size[0] = 0x80000000` (2 GiB DRAM);
+- eMMC initialization at the known-good 25 MHz mode;
+- `0123456789ABCDEF fastboot`.
+
+The board's permanent Preloader, GPT, `lk`, and `tee1` were not changed.  The
+remote test input and complete UART capture are retained here:
+
+```text
+/root/x20-fes-test/source-preloader-bkt-v1/preloader_amt6797_64_open.bin
+SHA-256: 0cea579b36a3ff98bb4d68222570e6592b3a7a7b9dd8b8bd00742fe690b4ed5f
+
+/root/x20-fes-test/normal-repair/source-preloader-bkt-v1-serial.log
+SHA-256: 0414e93db62eef73a92d801ea700050fec73bb598b563a3da016c235e86e4e9a
+```
+
+This proves the source-built BootROM-facing stage can enter the existing
+recovery chain; it is not yet a permanent Preloader replacement or the final
+single-rootfs boot chain.
+
 The old 96Boards archive URL was also checked and returned HTTP 404:
 
 ```text
