@@ -3,6 +3,7 @@
 #include "platform.h"
 #include "blkdev.h"
 #include "mmc_core.h"
+#include "partition.h"
 #include "string.h"
 #include "x20_raw_stage.h"
 
@@ -146,6 +147,8 @@ int x20_raw_stage_load(blkdev_t *bdev, u32 *jump_addr, u32 *loader_size)
     u32 loaded_atf_size;
     u32 loader_crc;
     u32 atf_crc;
+    int header_ret;
+    part_t *legacy_lk;
 
     if (!bdev || !jump_addr || bdev->blksz != 512)
         return -1;
@@ -153,17 +156,36 @@ int x20_raw_stage_load(blkdev_t *bdev, u32 *jump_addr, u32 *loader_size)
     stage_base = (u64)X20_RAW_STAGE_USER_LBA * 512ULL;
     print("%s read header at user LBA 0x%x\n", MOD,
           X20_RAW_STAGE_USER_LBA);
-    if (blkdev_read(bdev, stage_base, X20_RAW_STAGE_HEADER_SIZE,
-                    x20_stage_header, EMMC_PART_USER) != 0)
-        return -1;
+    header_ret = blkdev_read(bdev, stage_base, X20_RAW_STAGE_HEADER_SIZE,
+                             x20_stage_header, EMMC_PART_USER);
+    if (header_ret == 0)
+        header_ret = x20_stage_header_valid(&total, &loader_offset,
+                                            &loaded_loader_size, &loader_load,
+                                            &loader_entry, &loader_crc,
+                                            &atf_offset, &loaded_atf_size,
+                                            &atf_load, &atf_entry, &atf_crc);
 
-    if (x20_stage_header_valid(&total, &loader_offset,
-                               &loaded_loader_size, &loader_load,
-                               &loader_entry, &loader_crc,
-                               &atf_offset, &loaded_atf_size, &atf_load,
-                               &atf_entry, &atf_crc) != 0) {
-        print("%s invalid header\n", MOD);
-        return -1;
+    if (header_ret != 0) {
+        /* xflash's FES download protocol addresses the old GPT "lk" name.
+         * Keep this migration-only bridge while the fixed raw location is
+         * being populated; the fixed location remains the first choice. */
+        legacy_lk = part_get("lk");
+        if (!legacy_lk || legacy_lk->part_id != EMMC_PART_USER)
+            return -1;
+        stage_base = (u64)legacy_lk->start_sect * 512ULL;
+        print("%s fixed stage absent; try legacy lk LBA 0x%x\n", MOD,
+              (u32)legacy_lk->start_sect);
+        if (blkdev_read(bdev, stage_base, X20_RAW_STAGE_HEADER_SIZE,
+                        x20_stage_header, EMMC_PART_USER) != 0 ||
+            x20_stage_header_valid(&total, &loader_offset,
+                                   &loaded_loader_size, &loader_load,
+                                   &loader_entry, &loader_crc,
+                                   &atf_offset, &loaded_atf_size, &atf_load,
+                                   &atf_entry, &atf_crc) != 0 ||
+            total > (u64)legacy_lk->nr_sects * 512ULL) {
+            print("%s invalid raw stage\n", MOD);
+            return -1;
+        }
     }
 
     if (blkdev_read(bdev, stage_base + loader_offset, loaded_loader_size,
