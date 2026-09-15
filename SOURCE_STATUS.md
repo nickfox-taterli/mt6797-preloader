@@ -99,6 +99,16 @@ Preloader/Android USB enumeration but did not yield a complete UART-backed
 cold-boot-to-Debian result.  Treat that Boot1 contents as experimental and
 restore the exact known-good binary before the next persistent-chain test.
 
+The follow-up recovery attempt was intentionally ordered for a fast BootROM
+window: xflash was already at `wait for device`, then a manual cold power-on,
+one D2 10000-ms pulse, and one D3 500-ms pulse were tried.  The controller
+acknowledged both reset commands, but the physical host saw no new
+`0e8d:2000` BootROM/Preloader device and xflash ended with `wait for com
+error. code 0x9`.  This is additional negative qualification evidence for
+the source image.  It does not identify whether the remaining failure is
+DRAM, board DCT, eMMC, or another BootROM-facing mismatch, so the source
+image must not be retried as a persistent Boot1 image.
+
 The exact X20-96 binary remains the fallback:
 `prebuilt/preloader_amt6797_64_open.bin`, SHA-256
 `5e50d7c8820d24e08f6767911c7e53b39661cc5e90a2a29670236be8e7b3f2d7`.
