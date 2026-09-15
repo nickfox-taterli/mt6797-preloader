@@ -27,8 +27,9 @@ The source was copied into the maintained component repository at:
 `/root/code/x20/x20-sbc/components/preloader/source`
 
 The original checkout remains at `/root/code/x20/vendor` only as provenance
-and a temporary reference.  The component currently pins the copied source at
-commit `c6f1c0d`; the vendor checkout's provenance branch is
+and a temporary reference.  The current Preloader component HEAD is
+`5fe400b`; its last source-code snapshot was introduced at `c6f1c0d` (source
+tree `29e9db324daae15280c1f88754f896b63099e6ab`).  The vendor checkout's provenance branch is
 `x20/nb6797-6c-m-preloader` at `be545c074ea484d0d51433b6bbf1acc032affe5a`.
 
 This is recovered MT6797 `nb6797_6c_m` source, not an established exact source
