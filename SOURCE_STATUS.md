@@ -22,23 +22,26 @@ tree.
 
 ## Recovered source tree
 
-A separate local Git checkout now provides the matching vendor source:
+The source was copied into the maintained component repository at:
 
-`/root/code/x20/vendor`
+`/root/code/x20/x20-sbc/components/preloader/source`
 
-Remote:
+The original checkout remains at `/root/code/x20/vendor` only as provenance
+and a temporary reference.  The component currently pins the copied source at
+commit `c6f1c0d`; the vendor checkout's provenance branch is
+`x20/nb6797-6c-m-preloader` at `be545c074ea484d0d51433b6bbf1acc032affe5a`.
 
-`https://gitlab.com/mt6797/vendor`
+This is recovered MT6797 `nb6797_6c_m` source, not an established exact source
+match for the X20-96 AOSP image.  The local AOSP image and the old LK tree use
+the target name `amt6797_64_open`.  A direct comparison found differences in
+DCT EINT/GPIO and peripheral data, RTC defaults, target make settings and the
+DRAM candidate list.  UART1/MSDC0 pad definitions and the MT6351 PMIC are
+common, which makes the source useful for controlled probes but does not make
+it safe as a permanent BootROM-facing image.
 
-The X20-specific Preloader source is:
-
-`mediatek/proprietary/bootable/bootloader/preloader`
-
-The maintained branch is `x20/nb6797-6c-m-preloader`, currently pinned at
-`be545c074ea484d0d51433b6bbf1acc032affe5a`.  Its board-specific commit selects
-the BOM DRAM part `H9CKNNNBKTMRPR-NUH`; the original `nb6797_6c_m` header had
-the stale `H9CKNNNDATMUPR` entry and could not be built against its current
-memory table.
+The `H9CKNNNBKTMRPR-NUH` selection is a current working BOM hypothesis.  It
+must remain explicitly marked until the physical DRAM marking or a complete
+cold-boot qualification confirms it.
 
 The source build is intentionally kept in the Preloader component as a small
 wrapper:
@@ -63,10 +66,11 @@ format.  The Android lock, AVB, fastboot policy and signature logic targeted
 for removal belong to the replacement Loader; they must not be removed from
 this immutable BootROM-facing stage without a separate BootROM test.
 
-## Physical FES validation
+## Qualification status and physical validation
 
-The fixed-time source-built artifact was temporarily loaded by BootROM through
-xflash on the real X20-96 board.  The paired vendor LK/ATF then reached:
+An earlier fixed-time source-built artifact was temporarily loaded by BootROM
+through xflash on the real X20-96 board.  The paired vendor LK/ATF then
+reached:
 
 - one-rank `dram_rank_size[0] = 0x80000000` (2 GiB DRAM);
 - eMMC initialization at the known-good 25 MHz mode;
@@ -83,9 +87,22 @@ SHA-256: 0cea579b36a3ff98bb4d68222570e6592b3a7a7b9dd8b8bd00742fe690b4ed5f
 SHA-256: 0414e93db62eef73a92d801ea700050fec73bb598b563a3da016c235e86e4e9a
 ```
 
-This proves the source-built BootROM-facing stage can enter the existing
-recovery chain; it is not yet a permanent Preloader replacement or the final
-single-rootfs boot chain.
+This proves that one source build was accepted far enough to enter the
+existing recovery chain; it does not prove that `nb6797_6c_m` is the exact
+X20-96 board configuration or that it is safe for cold boot.
+
+In the later raw-stage migration probe, the current component-built artifact
+`69aa9dba7be572e386b2fdac8d0f6d7a688ed2c290ef6456d5a6924b00df88eb` (202648
+bytes) was written to Boot1 through the migration Loader.  The board showed
+Preloader/Android USB enumeration but did not yield a complete UART-backed
+cold-boot-to-Debian result.  Treat that Boot1 contents as experimental and
+restore the exact known-good binary before the next persistent-chain test.
+
+The exact X20-96 binary remains the fallback:
+`prebuilt/preloader_amt6797_64_open.bin`, SHA-256
+`5e50d7c8820d24e08f6767911c7e53b39661cc5e90a2a29670236be8e7b3f2d7`.
+Keeping this binary is intentional and is not considered a failure of the
+source-migration work; source qualification can continue independently.
 
 The old 96Boards archive URL was also checked and returned HTTP 404:
 
