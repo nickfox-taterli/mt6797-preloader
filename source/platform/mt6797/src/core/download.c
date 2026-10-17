@@ -43,6 +43,9 @@
 #include "buffer.h"
 #include "sec_region.h"
 #include "dram_buffer.h"
+#if CFG_X20_UART_RESCUE
+extern void device_APC_dom_setup(void);
+#endif
 #if CFG_ATF_SUPPORT
 #include "tz_init.h"
 #endif
@@ -623,6 +626,13 @@ static void usbdl_boot_image(void)
         usbdl_put_word(1);
         return;
     }
+#if !CFG_FPGA_PLATFORM
+    /* This jump occurs inside bldr_handshake(), before main() reaches the
+     * normal master-domain initialization.  ConSys must use DOMAIN_2 before
+     * Linux restores the BSP's ConSys-only EMI permissions.
+     */
+    device_APC_dom_setup();
+#endif
 #endif
 
 #if CFG_ATF_SUPPORT

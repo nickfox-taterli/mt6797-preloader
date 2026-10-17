@@ -151,6 +151,9 @@ void tz_set_module_apc(unsigned int module, E_MASK_DOM domain_num , APC_ATTR per
 
 void device_APC_dom_setup(void)
 {
+#if CFG_X20_UART_RESCUE
+	unsigned int domain_before = reg_read32(DEVAPC0_MAS_DOM_3);
+#endif
 	MSG(DOM, "\nDevice APC domain init setup:\n\n");
 
 	reg_write32(DEVAPC0_APC_CON, 0x0);
@@ -183,6 +186,11 @@ void device_APC_dom_setup(void)
 	/*Set MFG(GPU) to DOMAIN6*/
 	reg_set_field(DEVAPC0_MAS_DOM_3 , GPU0,		DOMAIN_6);
 	reg_set_field(DEVAPC0_MAS_DOM_4 , GPU1,		DOMAIN_6);
+
+#if CFG_X20_UART_RESCUE
+	print("[DOM] UART rescue master domain3: %08x -> %08x\n",
+	      domain_before, reg_read32(DEVAPC0_MAS_DOM_3));
+#endif
 
 	/* MD HW domain and MM domain are not set by Device APC */
 
