@@ -552,6 +552,10 @@ end:
 #define CFG_ATF_ADDR    CFG_ATF_ROM_MEMADDR
 #define CFG_ATF_SIZE    0x40000     //256KB
 
+#if CFG_X20_UART_RESCUE
+static unsigned int uart_images_verified;
+#endif
+
 static void usbdl_init_image(void)
 {
     int i = 0;
@@ -613,6 +617,14 @@ static void usbdl_boot_image(void)
     usbdl_get_data(img_name, 64);
     print("%s BOOT_IMAGE: %s\n", MOD, img_name);
 
+#if CFG_X20_UART_RESCUE
+    if (uart_images_verified != ((1U << 0) | (1U << 3)) ||
+        memcmp(img_name, "tee1\0", 5)) {
+        usbdl_put_word(1);
+        return;
+    }
+#endif
+
 #if CFG_ATF_SUPPORT
     trustzone_pre_init();
 #endif
@@ -638,6 +650,12 @@ static void usbdl_boot_image(void)
     } else if (!strcmp(img_name, atf)) {
         usbdl_put_word(status);
         print("%s Jump to ATF\n", MOD);
+#if CFG_X20_UART_RESCUE
+        /* Complete the 115200-baud protocol status before the 921600 handoff. */
+        while (!(DRV_Reg32(UART1 + 0x14) & 0x40))
+            ;
+        serial_setbrg(EVB_UART_CLOCK, CFG_LOG_BAUDRATE);
+#endif
         bldr_jump64(g_image_list[0].start_addr + PART_HDR_BUF_SIZE, jump_arg, sizeof(boot_arg_t));
     } else {
         status = 1;
@@ -659,6 +677,9 @@ static void usbdl_send_image(void)
 
     // 1. get partition name
     usbdl_get_data(img_name, 64);
+#if CFG_X20_UART_RESCUE
+    img_name[sizeof(img_name) - 1] = 0;
+#endif
     print("%s SEND_IMAGE: img_name = %s\n", MOD, img_name);
 
     // 2. get length, which includes sig len
@@ -676,8 +697,18 @@ static void usbdl_send_image(void)
     print("%s SEND_IMAGE: img_addr = 0x%x\n", MOD, img_addr);
     if (!img_addr) {
         print("%s Unknown image Received.\n", MOD);
-        //return;
+        usbdl_put_word(1);
+        return;
     }
+
+#if CFG_X20_UART_RESCUE
+    /* Rescue accepts only the two bounded RAM stages it can execute. */
+    if (i != 0 && i != 3) {
+        usbdl_put_word(1);
+        return;
+    }
+    uart_images_verified &= ~(1U << i);
+#endif
 
     usbdl_put_word(status);
 
@@ -694,8 +725,16 @@ static void usbdl_send_image(void)
     // 6. verify checksum
     if (my_checksum32 != checksum32) {
         print("%s checksum mismatch!\n", MOD);
+#if CFG_X20_UART_RESCUE
+        usbdl_put_word(1);
+#endif
         return;
     }
+
+#if CFG_X20_UART_RESCUE
+    uart_images_verified |= 1U << i;
+    usbdl_put_word(0);
+#endif
 
     // 7. return status 2 by verify the check sum.
     //usbdl_put_word(status);

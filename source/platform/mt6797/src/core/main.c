@@ -475,7 +475,7 @@ static int bldr_handshake(struct bldr_command_handler *handler)
 
         if (!isLocked) {
             print("%s Tool connection is unlocked\n", MOD);
-            #if CFG_USB_TOOL_HANDSHAKE
+            #if CFG_USB_TOOL_HANDSHAKE && !CFG_X20_UART_RESCUE
             if (TRUE == usb_handshake(handler))
                 g_meta_com_type = META_USB_COM;
 		    BOOTING_TIME_PROFILING_LOG("USB handshake");

@@ -207,4 +207,6 @@ typedef enum
 #define EVB_UART_CLOCK      (26000000)
 #define FPGA_UART_CLOCK     (12000000)
 
+extern void serial_setbrg(U32 uartclk, U32 baudrate);
+
 #endif

@@ -217,6 +217,9 @@ void mtk_serial_set_current_uart(MT65XX_UART uart_base)
 
 void mtk_uart_init (U32 uartclk, U32 baudrate)
 {
+#if CFG_X20_UART_RESCUE
+    baudrate = 115200;
+#endif
 #if !CFG_FPGA_PLATFORM
 	#ifdef GPIO_UART_UTXD0_PIN
     mt_set_gpio_mode(GPIO_UART_UTXD0_PIN, GPIO_UART_UTXD0_PIN_M_UTXD);

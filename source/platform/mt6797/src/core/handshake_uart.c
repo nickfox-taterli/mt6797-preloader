@@ -39,6 +39,7 @@
 #include "platform.h"
 #include "meta.h"
 #include "uart.h"
+#include "download.h"
 
 #if CFG_UART_TOOL_HANDSHAKE
 
@@ -156,6 +157,17 @@ static bool uart_handshake_handler(struct bldr_command_handler *handler)
         result = FALSE;
         goto exit;
     }
+
+#if defined(CFG_X20_UART_RESCUE) && CFG_X20_UART_RESCUE
+    /* RAM-only rescue build: reuse the image download protocol over UART.
+     * No storage write command is added; reset returns to the Boot1 image.
+     */
+    if (memcmp(buf, "X20UART!", HSHK_TOKEN_SZ) == 0) {
+        uart_send((u8 *)"UARTDL!", 7);
+        result = (usbdl_handler(&comport, 2000) == 0);
+        goto exit;
+    }
+#endif
 
     cmd.data = buf;
     cmd.len  = HSHK_TOKEN_SZ;
