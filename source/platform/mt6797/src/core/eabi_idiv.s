@@ -55,8 +55,10 @@
         .align  5
 
 .globl __divsi3
+.type __divsi3, %function
 
 .globl __aeabi_idiv
+.type __aeabi_idiv, %function
 
 __divsi3:
 

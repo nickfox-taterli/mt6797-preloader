@@ -65,6 +65,7 @@ LD0:
         .size  __udivsi3       , . -  __udivsi3
 
 .globl __aeabi_uidivmod
+.type __aeabi_uidivmod, %function
 __aeabi_uidivmod:
         stmfd   sp!, {r0, r1, ip, lr}
         bl      __aeabi_uidiv
@@ -74,6 +75,7 @@ __aeabi_uidivmod:
         mov     pc, lr
 
 .globl __aeabi_idivmod
+.type __aeabi_idivmod, %function
 
 __aeabi_idivmod:
 

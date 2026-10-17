@@ -23,6 +23,7 @@ bldr_args_addr:
     .word 0x0
 
 .globl _start
+.type _start, %function
 _start:
     b resethandler
 bss_start:
@@ -125,6 +126,7 @@ setup_stk :
     LDR r1, [r1]
     SUB r1, r1, #0x04
     ADD r1, r0, r1
+    BIC r1, r1, #7          /* AAPCS requires an 8-byte-aligned C stack. */
 
     MOV sp, r1
 
@@ -133,23 +135,27 @@ entry :
     B   main
 
 .globl jump
+.type jump, %function
 jump:
     MOV r4, r1   /* r4 argument */
     MOV r5, r2   /* r5 argument */
     MOV pc, r0    /* jump to addr */
 
 .globl apmcu_icache_invalidate
+.type apmcu_icache_invalidate, %function
 apmcu_icache_invalidate:
     MOV r0, #0
     MCR p15, 0, r0, c7, c5, 0  /* CHECKME: c5 or c1 */
     BX  lr
 
 .globl apmcu_isb
+.type apmcu_isb, %function
 apmcu_isb:
     ISB
     BX  lr
 
 .globl apmcu_disable_icache
+.type apmcu_disable_icache, %function
 apmcu_disable_icache:
     MOV r0,#0
     MCR p15,0,r0,c7,c5,6   /* Flush entire branch target cache */
@@ -159,6 +165,7 @@ apmcu_disable_icache:
     BX  lr
 
 .globl apmcu_disable_smp
+.type apmcu_disable_smp, %function
 apmcu_disable_smp:
     MRC p15,0,r0,c1,c0,1
     BIC r0,r0,#0x040       /* SMP bit */
@@ -167,6 +174,7 @@ apmcu_disable_smp:
 
 .section .text.arch64
 .globl jumparch64
+.type jumparch64, %function
 jumparch64:
     MOV r4, r1   /* r4 argument */
     MOV r5, r2   /* r5 argument */
@@ -206,6 +214,7 @@ WFI_LOOP:
     B WFI_LOOP
 
 .globl jumparch64_slt
+.type jumparch64_slt, %function
 jumparch64_slt:
     /* setup the reset vector base address after warm reset to Aarch64 */
     /* ldr r1,=RVBADDRESS_CPU0 */
